@@ -2,5 +2,8 @@
     "name": "undelete/site-parser",
     "require": {
         "guzzlehttp/guzzle": "^6.2"
+    },
+    "autoload": {
+        "psr-4": {"Undelete\\SiteStat\\": "src/"}
     }
 }
