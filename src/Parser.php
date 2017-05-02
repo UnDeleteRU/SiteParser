@@ -12,36 +12,64 @@ class Parser
 {
     private $urls;
 
+    private $index;
+
+    private $host;
+
+    private $scheme;
+
     private $concurrency;
 
-    private $index;
+    private $strategy;
 
     public function __construct($url, $concurrency = 10)
     {
         $this->urls = [$url];
+        $this->host = parse_url($url, PHP_URL_HOST);
+        $this->scheme = parse_url($url, PHP_URL_SCHEME);
         $this->index = 0;
         $this->concurrency = $concurrency;
+
+        $this->strategy = new ContinuousParserStrategy($this);
     }
 
     public function run()
     {
         $client = new Client();
 
-        $pool = new Pool($client, $this->generator(), [
-            'concurrency' => $this->concurrency,
-            'fulfilled' => [$this, 'success'],
-            'rejected' =>  [$this, 'fail'],
-            'options' => [
-                'on_stats' => [$this, 'statistic'],
-            ]
-        ]);
 
-        $promise = $pool->promise();
-        $promise->wait();
+        do {
+            $pool = new Pool($client, $this->generator(), [
+                'concurrency' => $this->concurrency,
+                'fulfilled' => [$this, 'success'],
+                'rejected' =>  [$this, 'fail'],
+                'options' => [
+                    'on_stats' => [$this, 'statistic'],
+                ]
+            ]);
+
+            $promise = $pool->promise();
+            $promise->wait();
+        } while ($this->index < count($this->urls));
     }
 
-    public function add($uri) {
-        $this->urls[] = $uri;
+    public function getHost()
+    {
+        return $this->host;
+    }
+
+    public function getScheme()
+    {
+        return $this->scheme;
+    }
+
+    public function add($url)
+    {
+        if (count($this->urls) >= 200) {
+            return;
+        }
+
+        $this->urls[] = $url;
     }
 
     public function generator()
@@ -55,6 +83,7 @@ class Parser
 
     public function success(Response $response, $index)
     {
+        $this->strategy->processResponse($response);
         echo "sucess $index \r\n";
     }
 
