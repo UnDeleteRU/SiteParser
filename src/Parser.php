@@ -14,10 +14,6 @@ class Parser
 
     private $index;
 
-    private $host;
-
-    private $scheme;
-
     private $concurrency;
 
     private $strategy;
@@ -25,8 +21,6 @@ class Parser
     public function __construct($url, $concurrency = 10)
     {
         $this->urls = [$url];
-        $this->host = parse_url($url, PHP_URL_HOST);
-        $this->scheme = parse_url($url, PHP_URL_SCHEME);
         $this->index = 0;
         $this->concurrency = $concurrency;
 
@@ -53,19 +47,13 @@ class Parser
         } while ($this->index < count($this->urls));
     }
 
-    public function getHost()
-    {
-        return $this->host;
-    }
-
-    public function getScheme()
-    {
-        return $this->scheme;
-    }
-
     public function add($url)
     {
-        if (count($this->urls) >= 200) {
+        if (in_array($url, $this->urls)) {
+            return;
+        }
+
+        if (count($this->urls) >= 20) {
             return;
         }
 
@@ -75,16 +63,15 @@ class Parser
     public function generator()
     {
         while (isset($this->urls[$this->index])) {
-            $uri = $this->urls[$this->index];
-            yield new Request('GET', $uri);
+            yield $this->index => new Request('GET', $this->urls[$this->index]);
             $this->index++;
         }
     }
 
     public function success(Response $response, $index)
     {
-        $this->strategy->processResponse($response);
-        echo "sucess $index \r\n";
+        $this->strategy->processResponse($response, $this->urls[$index]);
+        echo "succes " . $this->urls[$index] . "\r\n";
     }
 
     public function fail($reason, $index)

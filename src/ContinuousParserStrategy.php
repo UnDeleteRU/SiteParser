@@ -14,8 +14,16 @@ class ContinuousParserStrategy
         $this->parser = $parser;
     }
 
-    public function processResponse(ResponseInterface $response)
+    public function processResponse(ResponseInterface $response, $baseUrl)
     {
+        $baseHost = parse_url($baseUrl, PHP_URL_HOST);
+        $baseScheme = parse_url($baseUrl, PHP_URL_SCHEME);
+        $basePath = parse_url($baseUrl, PHP_URL_PATH);
+
+        if (strrpos($basePath, '/') !== false) {
+            $basePath = substr($basePath, 0, strrpos($basePath, '/') + 1);
+        }
+
         $dom = HtmlDomParser::str_get_html($response->getBody());
         $elements = $dom->find('a[href]');
 
@@ -27,16 +35,16 @@ class ContinuousParserStrategy
                 continue;
             }
 
-            if (isset($parts['host']) && ($parts['host'] != $this->parser->getHost())) {
+            if (isset($parts['host']) && ($parts['host'] != $baseHost)) {
                 continue;
             }
 
             if (!isset($parts['host'])) {
-                $url = $this->parser->getHost() . ($url{0} == '/' ? '' : '/') . $url;
-            }
-
-            if (!isset($parts['scheme'])) {
-                $url = $this->parser->getScheme() . '://' . $url;
+                if ($url{0} == '/') {
+                    $url = $baseScheme . '://' . $baseHost . $url;
+                } else {
+                    $url = $baseScheme . '://' . $baseHost . str_replace("/../", "/", $basePath . $url);
+                }
             }
 
             $this->parser->add($url);
