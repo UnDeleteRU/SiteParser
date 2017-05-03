@@ -25,17 +25,26 @@ class ContinuousParserStrategy
         }
 
         $dom = HtmlDomParser::str_get_html($response->getBody());
+
+        if (!$dom) {
+            return;
+        }
+
         $elements = $dom->find('a[href]');
 
         foreach ($elements as $element) {
             $url = $element->href;
             $parts = parse_url($url);
 
-            if (!isset($parts['path']) || isset($parts['query'])) {
+            if (empty($parts['path']) && !isset($parts['query'])) {
                 continue;
             }
 
             if (isset($parts['host']) && ($parts['host'] != $baseHost)) {
+                continue;
+            }
+
+            if (isset($parts['scheme']) && ($parts['scheme'] != $baseScheme)) {
                 continue;
             }
 

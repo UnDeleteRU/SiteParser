@@ -18,6 +18,8 @@ class Parser
 
     private $strategy;
 
+    private $results;
+
     public function __construct($url, $concurrency = 10)
     {
         $this->urls = [$url];
@@ -25,12 +27,13 @@ class Parser
         $this->concurrency = $concurrency;
 
         $this->strategy = new ContinuousParserStrategy($this);
+
+        $this->results = [];
     }
 
     public function run()
     {
         $client = new Client();
-
 
         do {
             $pool = new Pool($client, $this->generator(), [
@@ -45,6 +48,8 @@ class Parser
             $promise = $pool->promise();
             $promise->wait();
         } while ($this->index < count($this->urls));
+
+        var_dump($this->results);
     }
 
     public function add($url)
@@ -53,7 +58,7 @@ class Parser
             return;
         }
 
-        if (count($this->urls) >= 20) {
+        if (count($this->urls) >= 150) {
             return;
         }
 
@@ -70,7 +75,35 @@ class Parser
 
     public function success(Response $response, $index)
     {
-        $this->strategy->processResponse($response, $this->urls[$index]);
+        $contentType = $response->getHeader('Content-Type');
+
+        if ($contentType) {
+            $list = explode(";", $contentType[0]);
+            if (stripos($list[0], 'text') === 0) {
+                $type = 'text';
+            } elseif (stripos($list[0], 'application') === 0) {
+                $type = 'application';
+            } elseif (stripos($list[0], 'image') === 0) {
+                $type = 'image';
+            } else {
+                $type = 'unknown';
+            }
+        } else {
+            $type = 'unknown';
+        }
+
+        if ($type == 'text') {
+            $this->strategy->processResponse($response, $this->urls[$index]);
+        }
+
+        if (!isset($this->results[$type])) {
+            $this->results[$type] = new ParseResult();
+        }
+
+        $this->results[$type]->count++;
+        $this->results[$type]->sizes[] = strlen($response->getBody());
+        $this->results[$type]->addCode($response->getStatusCode());
+
         echo "succes " . $this->urls[$index] . "\r\n";
     }
 
