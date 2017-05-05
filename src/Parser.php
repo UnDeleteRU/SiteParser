@@ -18,7 +18,7 @@ class Parser
 
     private $strategy;
 
-    private $results;
+    private $stat;
 
     public function __construct($url, $concurrency = 10)
     {
@@ -28,7 +28,7 @@ class Parser
 
         $this->strategy = new ContinuousParserStrategy($this);
 
-        $this->results = [];
+        $this->stat = new StatService();
     }
 
     public function run()
@@ -38,8 +38,6 @@ class Parser
         do {
             $pool = new Pool($client, $this->generator(), [
                 'concurrency' => $this->concurrency,
-                'fulfilled' => [$this, 'success'],
-                'rejected' =>  [$this, 'fail'],
                 'options' => [
                     'on_stats' => [$this, 'statistic'],
                 ]
@@ -48,8 +46,6 @@ class Parser
             $promise = $pool->promise();
             $promise->wait();
         } while ($this->index < count($this->urls));
-
-        var_dump($this->results);
     }
 
     public function add($url)
@@ -73,8 +69,14 @@ class Parser
         }
     }
 
-    public function success(Response $response, $index)
+    public function statistic(TransferStats $stats)
     {
+        $this->stat->addStat($stats->getTransferTime(), $stats->getHandlerStat('size_download'));
+
+        if (!$response = $stats->getResponse()) {
+            return;
+        }
+
         $contentType = $response->getHeader('Content-Type');
 
         if ($contentType) {
@@ -92,28 +94,10 @@ class Parser
             $type = 'unknown';
         }
 
-        if ($type == 'text') {
-            $this->strategy->processResponse($response, $this->urls[$index]);
+        if ($type == 'text' && 200 == $response->getStatusCode()) {
+            $this->strategy->processResponse($response, (string) $stats->getEffectiveUri());
         }
 
-        if (!isset($this->results[$type])) {
-            $this->results[$type] = new ParseResult();
-        }
-
-        $this->results[$type]->count++;
-        $this->results[$type]->sizes[] = strlen($response->getBody());
-        $this->results[$type]->addCode($response->getStatusCode());
-
-        echo "succes " . $this->urls[$index] . "\r\n";
-    }
-
-    public function fail($reason, $index)
-    {
-        echo "fail $reason\r\n";
-    }
-
-    public function statistic(TransferStats $stats)
-    {
-        echo "stats\r\n";
+        $this->stat->addResult($type, strlen($response->getBody()), $response->getStatusCode());
     }
 }
