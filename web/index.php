@@ -16,7 +16,7 @@
 
     var button = document.querySelector('button');
     button.addEventListener('click', function () {
-
+        connection.send(JSON.stringify({cmd: 'parse', site: document.querySelector('[name=site]').value}));
     });
 </script>
 </body>

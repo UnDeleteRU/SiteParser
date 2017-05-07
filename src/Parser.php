@@ -7,28 +7,85 @@ use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\TransferStats;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Client;
+use Ratchet\Client\WebSocket;
 
 class Parser
 {
     private $urls;
-
     private $index;
 
     private $concurrency;
 
     private $strategy;
-
     private $stat;
 
-    public function __construct($url, $concurrency = 10)
+    /**
+     * @var WebSocket|null
+     */
+    private $socket;
+
+    public function __construct($concurrency = 10)
     {
-        $this->urls = [$url];
-        $this->index = 0;
         $this->concurrency = $concurrency;
+        $this->reset();
 
         $this->strategy = new ContinuousParserStrategy($this);
-
         $this->stat = new StatService();
+
+        \Ratchet\Client\connect('ws://127.0.0.1:8080')->then(
+            [$this, 'socketConnect'],
+            function ($e) {
+                echo "Could not connect: {$e->getMessage()}\n";
+            }
+        );
+    }
+
+    private function reset()
+    {
+        $this->urls = [];
+        $this->index = 0;
+    }
+
+    public function socketConnect(WebSocket $connection)
+    {
+        $this->socket = $connection;
+
+        $connection->on('message', function($message) use ($connection) {
+            $request = json_decode($message, true);
+
+            if (!$request || !isset($request['status']) || $request['status'] != 'nobot') {
+                $connection->close();
+            }
+
+            $connection->removeAllListeners('message');
+            $connection->on('message', function($message) use ($connection) {
+                $request = json_decode($message, true);
+
+                if (!is_array($request)) {
+                    return;
+                }
+
+                if (!isset($request['cmd'])) {
+                    return;
+                }
+
+                if ($request['cmd'] == 'parse' && isset($request['site'])) {
+                    $host = parse_url($request['site'], PHP_URL_HOST);
+                    $scheme = parse_url($request['site'], PHP_URL_SCHEME);
+
+                    if (!$host || !$scheme) {
+                        return;
+                    }
+
+                    $this->add($scheme . '://' . $host);
+                    $this->run();
+                }
+            });
+
+            $connection->send(json_encode(['kind' => 'bot', 'cmd' => 'init']));
+        });
+
+        $connection->send(json_encode(['cmd' => 'info']));
     }
 
     public function run()
@@ -46,6 +103,9 @@ class Parser
             $promise = $pool->promise();
             $promise->wait();
         } while ($this->index < count($this->urls));
+
+        $this->stat->publishStat($this->socket, true);
+        $this->reset();
     }
 
     public function add($url)
@@ -99,5 +159,6 @@ class Parser
         }
 
         $this->stat->addResult($type, strlen($response->getBody()), $response->getStatusCode());
+        $this->stat->publishStat($this->socket);
     }
 }

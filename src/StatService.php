@@ -2,6 +2,8 @@
 
 namespace Undelete\SiteStat;
 
+use Ratchet\Client\WebSocket;
+
 class StatService
 {
     const REFRESH_TIME = 0.5;
@@ -25,8 +27,6 @@ class StatService
             'start' => microtime(true) - $time,
             'size' => $size,
         ];
-
-        $this->publishStat();
     }
 
     public function addResult($type, $length, $code)
@@ -40,9 +40,9 @@ class StatService
         $this->results[$type]->addCode($code);
     }
 
-    public function publishStat()
+    public function publishStat(WebSocket $socket, $force = false)
     {
-        if ($this->lastPublish + self::REFRESH_TIME > microtime(true)) {
+        if (!$force && ($this->lastPublish + self::REFRESH_TIME > microtime(true))) {
             return;
         }
 
@@ -59,18 +59,26 @@ class StatService
         $count = 0;
 
         do {
-            $koef = $this->stats[$index]['start'] - $time;
-            $sum += $koef * ($this->stats[$index]['size'] / $this->stats[$index]['time']);
-            $weight += $koef;
+            if ($this->stats[$index]['time']) {
+                $koef = $this->stats[$index]['start'] - $time;
+                $sum += $koef * ($this->stats[$index]['size'] / $this->stats[$index]['time']);
+                $weight += $koef;
+            }
 
             $count++;
-
             $index--;
         } while ($this->stats[$index]['start'] > $time);
 
-        $result = [
-            'speed' => $sum / $weight,
-            'count' => $count / self::HORIZON_TIME,
-        ];
+        $socket->send(json_encode(
+            [
+                'kind' => 'bot',
+                'cmd' => 'stat',
+                'stat' => [
+                    'speed' => $sum / $weight,
+                    'count' => $count / self::HORIZON_TIME,
+                    'time' => microtime(true),
+                ]
+            ]
+        ));
     }
 }
