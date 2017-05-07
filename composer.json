@@ -2,7 +2,8 @@
     "name": "undelete/site-parser",
     "require": {
         "guzzlehttp/guzzle": "^6.2",
-        "sunra/php-simple-html-dom-parser": "^1.5"
+        "sunra/php-simple-html-dom-parser": "^1.5",
+        "cboden/ratchet": "^0.3.6"
     },
     "autoload": {
         "psr-4": {"Undelete\\SiteStat\\": "src/"}
