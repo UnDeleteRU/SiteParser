@@ -1,0 +1,16 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.btn {
+  display: block;
+  background: green;
+  width: 200px;
+  height: 50px;
+  border-radius: 15px;
+  margin: 0 auto;
+
+}

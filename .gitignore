@@ -1,2 +1,6 @@
 /vendor/
 .idea
+
+/front/node_modules
+/front/coverage
+/front/build
