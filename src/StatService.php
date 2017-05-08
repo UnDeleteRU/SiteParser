@@ -3,6 +3,7 @@
 namespace Undelete\SiteStat;
 
 use Ratchet\Client\WebSocket;
+use React\EventLoop\LoopInterface;
 
 class StatService
 {
@@ -40,7 +41,7 @@ class StatService
         $this->results[$type]->addCode($code);
     }
 
-    public function publishStat(WebSocket $socket, $force = false)
+    public function publishStat(WebSocket $socket, LoopInterface $loop, $force = false)
     {
         if (!$force && ($this->lastPublish + self::REFRESH_TIME > microtime(true))) {
             return;
@@ -80,5 +81,8 @@ class StatService
                 ]
             ]
         ));
+
+        // Forcing message send
+        $loop->tick();
     }
 }

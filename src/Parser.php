@@ -8,6 +8,7 @@ use GuzzleHttp\TransferStats;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Client;
 use Ratchet\Client\WebSocket;
+use React\EventLoop\Factory;
 
 class Parser
 {
@@ -23,6 +24,7 @@ class Parser
      * @var WebSocket|null
      */
     private $socket;
+    private $loop;
 
     public function __construct($concurrency = 10)
     {
@@ -32,7 +34,8 @@ class Parser
         $this->strategy = new ContinuousParserStrategy($this);
         $this->stat = new StatService();
 
-        \Ratchet\Client\connect('ws://127.0.0.1:8080')->then(
+        $this->loop = Factory::create();
+        \Ratchet\Client\connect('ws://127.0.0.1:8080', [], [], $this->loop)->then(
             [$this, 'socketConnect'],
             function ($e) {
                 echo "Could not connect: {$e->getMessage()}\n";
@@ -58,7 +61,7 @@ class Parser
             }
 
             $connection->removeAllListeners('message');
-            $connection->on('message', function($message) use ($connection) {
+            $connection->on('message', function($message, WebSocket $connection) {
                 $request = json_decode($message, true);
 
                 if (!is_array($request)) {
@@ -104,7 +107,7 @@ class Parser
             $promise->wait();
         } while ($this->index < count($this->urls));
 
-        $this->stat->publishStat($this->socket, true);
+        $this->stat->publishStat($this->socket, $this->loop, true);
         $this->reset();
     }
 
@@ -159,6 +162,6 @@ class Parser
         }
 
         $this->stat->addResult($type, strlen($response->getBody()), $response->getStatusCode());
-        $this->stat->publishStat($this->socket);
+        $this->stat->publishStat($this->socket, $this->loop);
     }
 }
