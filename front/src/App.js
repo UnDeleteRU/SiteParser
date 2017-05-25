@@ -37,6 +37,7 @@ class App extends Component {
       var canvas = document.querySelector('#graph canvas');
       var context = canvas.getContext('2d');
       var scale = 2;
+      var offset = 0;
 
       canvas.width = container.offsetWidth * scale;
       canvas.height = container.offsetHeight;
@@ -57,14 +58,43 @@ class App extends Component {
       context.lineWidth = 1;
       context.strokeStyle = '#b7cff7';
 
-      setInterval(function(){
-          points.push(Math.round(Math.random() * 150));
+      var moveWindow = function () {
+          if (offset + length < current) {
+              context.closePath();
+              offset = current;
 
-          current += 1;
-          canvas.style.left = - current + "px";
-          context.lineTo((width + current) / scale, points[points.length - 1]);
-          context.stroke();
-      }, 100 / (6 * step));
+              if (points.length > length) {
+                  points = points.slice(points.length - length);
+              }
+
+              context.beginPath();
+              context.moveTo((width - points.length) / scale, points[0]);
+
+              for (var i = 1; i < points.length; i++) {
+                  context.lineTo((width - points.length + i) / scale, points[i]);
+              }
+
+              context.clearRect(0, 0, canvas.width, canvas.height);
+              context.stroke();
+          }
+      }
+
+      var last = 0;
+
+     setInterval(function(){
+        if (Math.random() < 0.05) {
+         last = Math.round(Math.random() * 150);
+        }
+
+        points.push(last);
+
+        current += 1;
+        canvas.style.left = - (current - offset) / scale + "px";
+        context.lineTo((width + current - offset) / scale, points[points.length - 1]);
+        context.stroke();
+
+        moveWindow();
+      }, 100 * scale / (6 * step));
   }
 
   parse(e) {
