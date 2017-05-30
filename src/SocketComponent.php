@@ -14,6 +14,8 @@ class SocketComponent implements MessageComponentInterface
      */
     private $bot;
 
+    private $running = false;
+
     public function __construct()
     {
         $this->clients = new \SplObjectStorage;
@@ -45,15 +47,29 @@ class SocketComponent implements MessageComponentInterface
                         $client->send($msg);
                     }
                 }
+            } elseif ($request['cmd'] == 'parseend') {
+                $this->running = false;
+                foreach ($this->clients as $client) {
+                    if ($client != $this->bot) {
+                        $client->send(json_encode(['status' => 'ready']));
+                    }
+                }
             }
         } else {
             $botActive = $this->bot instanceof ConnectionInterface;
 
             if ($request['cmd'] == 'info') {
-                $conn->send(json_encode(['status' => $botActive ? 'ready' : 'nobot']));
+                $conn->send(json_encode(['status' => $this->running ? 'running' : ($botActive ? 'ready' : 'nobot')]));
             } elseif ($request['cmd'] == 'parse' && isset($request['site'])) {
                 if ($botActive) {
+                    $this->running = true;
                     $this->bot->send($msg);
+
+                    foreach ($this->clients as $client) {
+                        if ($client != $this->bot) {
+                            $client->send(json_encode(['status' => 'running']));
+                        }
+                    }
                 }
             }
         }

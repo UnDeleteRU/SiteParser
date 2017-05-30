@@ -19,6 +19,8 @@ class App extends Component {
                   this.setState({status: 'online'});
               } else if (result.status === 'nobot') {
                   this.setState({status: 'offline'});
+              } else if (result.status === 'running') {
+                  this.setState({status: 'running'});
               }
           } else {
               console.log(result);
@@ -46,7 +48,7 @@ class App extends Component {
           return;
       }
 
-      var width = canvas.width - 50,
+      var width = canvas.width,
           length = 60 * 30, // 60 frames, 30 sec
           step = width / length,
           current = 0;
@@ -118,8 +120,12 @@ class App extends Component {
                 <a className="btn" onClick={this.parse}>Parse</a>
               </div>
           }
-          <div id="graph"><canvas></canvas></div>
-          <a className="btn" onClick={this.draw}>Draw</a>
+          {this.state.status === 'running' &&
+              <div>
+                  <div id="graph_speed"><canvas></canvas></div>
+                  <div id="graph_count"><canvas></canvas></div>
+              </div>
+          }
       </div>
     );
   }

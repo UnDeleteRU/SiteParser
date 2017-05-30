@@ -82,6 +82,8 @@ class Parser
 
                     $this->add($scheme . '://' . $host);
                     $this->run();
+
+                    $this->socket->send(json_encode(['kind' => 'bot', 'cmd' => 'parseend']));
                 }
             });
 

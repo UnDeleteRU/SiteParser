@@ -12,5 +12,27 @@ body {
   height: 50px;
   border-radius: 15px;
   margin: 0 auto;
+}
 
+#graph_speed, #graph_count {
+  margin: 0 5%;
+  width: 40%;
+  height: 250px;
+  background: #000;
+  overflow: hidden;
+}
+
+#graph_speed canvas, #graph_count canvas {
+  width: 200%;
+  height: 100%;
+  background: #000;
+  position: relative;
+}
+
+#graph_speed {
+  float: left;
+}
+
+#graph_count {
+  float: right;
 }
