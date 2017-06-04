@@ -36,3 +36,28 @@ body {
 #graph_count {
   float: right;
 }
+
+input[name=site] {
+  font-size: 30px;
+  width: 80%;
+}
+
+.site-form-wrap {
+  margin: 50px 0;
+}
+
+.site-form-wrap .btn {
+  margin: 100px auto 0;
+  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  font-size: 36px;
+  line-height: 1.5em;
+  color: #fff;
+  padding: 71px 0 0;
+  box-sizing: border-box;
+}
+
+#result_table {
+  margin-top: 50px;
+}

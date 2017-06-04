@@ -1,13 +1,13 @@
 import React, { Component } from 'react';
 
 class App extends Component {
-  constructor() {
-      super();
-      this.state = {'status': 'offline', site: ''};
+    constructor() {
+        super();
+        this.state = {'status': 'offline', site: ''};
 
-      this.connection = new WebSocket('ws://localhost:8080');
+        this.connection = new WebSocket('ws://localhost:8080');
 
-      this.connection.onmessage = event => {
+        this.connection.onmessage = event => {
           var result = JSON.parse(event.data);
 
           if (typeof result !== 'object') {
@@ -21,46 +21,51 @@ class App extends Component {
                   this.setState({status: 'offline'});
               } else if (result.status === 'running') {
                   this.setState({status: 'running'});
+                  this.draw();
               }
+          } else if (result.cmd === 'stat') {
+              console.log(result.stat);
+              this.last = result.stat.count * 4;
           } else {
               console.log(result);
           }
-      };
+        };
 
-      this.connection.onopen = function(event) {
+        this.connection.onopen = function(event) {
           this.send(JSON.stringify({cmd: 'info'}));
-      };
+        };
 
-      this.parse = this.parse.bind(this);
-  }
+        this.parse = this.parse.bind(this);
+        this.last = 0;
+    }
 
-  draw() {
-      var container = document.getElementById('graph');
-      var canvas = document.querySelector('#graph canvas');
-      var context = canvas.getContext('2d');
-      var scale = 2;
-      var offset = 0;
+    draw() {
+        var container = document.getElementById('graph_speed');
+        var canvas = document.querySelector('#graph_speed canvas');
+        var context = canvas.getContext('2d');
+        var scale = 2;
+        var offset = 0;
 
-      canvas.width = container.offsetWidth * scale;
-      canvas.height = container.offsetHeight;
+        canvas.width = container.offsetWidth * scale;
+        canvas.height = container.offsetHeight;
 
-      if (canvas.width < 100) {
+        if (canvas.width < 100) {
           return;
-      }
+        }
 
-      var width = canvas.width,
+        var width = canvas.width,
           length = 60 * 30, // 60 frames, 30 sec
           step = width / length,
           current = 0;
 
-      var points = [];
+        var points = [];
 
-      context.beginPath();
-      context.moveTo(width / scale, points[0]);
-      context.lineWidth = 1;
-      context.strokeStyle = '#b7cff7';
+        context.beginPath();
+        context.moveTo(width / scale, points[0]);
+        context.lineWidth = 1;
+        context.strokeStyle = '#b7cff7';
 
-      var moveWindow = function () {
+        var moveWindow = function () {
           if (offset + length < current) {
               context.closePath();
               offset = current;
@@ -79,56 +84,52 @@ class App extends Component {
               context.clearRect(0, 0, canvas.width, canvas.height);
               context.stroke();
           }
-      }
-
-      var last = 0;
-
-     setInterval(function(){
-        if (Math.random() < 0.05) {
-         last = Math.round(Math.random() * 150);
         }
 
-        points.push(last);
+        var app = this;
 
-        current += 1;
-        canvas.style.left = - (current - offset) / scale + "px";
-        context.lineTo((width + current - offset) / scale, points[points.length - 1]);
-        context.stroke();
+        setInterval(function(){
+            points.push(app.last);
 
-        moveWindow();
-      }, 100 * scale / (6 * step));
-  }
+            current += 1;
+            canvas.style.left = - (current - offset) / scale + "px";
+            context.lineTo((width + current - offset) / scale, points[points.length - 1]);
+            context.stroke();
 
-  parse(e) {
-      console.log(e, this);
-      this.connection.send(JSON.stringify({cmd: 'parse', site: document.querySelector('[name=site]').value}));
-  }
-
-    offlineRender() {
-        return (
-            <h1>Offline</h1>
-        )
+            moveWindow();
+        }, 100 * scale / (6 * step));
     }
 
-  render() {
-    return (
-      <div className="App">
-          State: {this.state.status}
-          {this.state.status === 'online' &&
-              <div>
-                <input type="text" name="site" />
-                <a className="btn" onClick={this.parse}>Parse</a>
-              </div>
-          }
-          {this.state.status === 'running' &&
-              <div>
-                  <div id="graph_speed"><canvas></canvas></div>
-                  <div id="graph_count"><canvas></canvas></div>
-              </div>
-          }
-      </div>
-    );
-  }
+    parse(e) {
+      this.connection.send(JSON.stringify({cmd: 'parse', site: document.querySelector('[name=site]').value}));
+    }
+
+    render() {
+        return (
+            <div className="App">
+              {this.state.status === 'offline' &&
+                  <h1>Bot is offline</h1>
+              }
+              {this.state.status === 'online' &&
+                  <div className="site-form-wrap">
+                    <input type="text" name="site" />
+                    <a className="btn" onClick={this.parse}>Parse</a>
+                  </div>
+              }
+              {this.state.status === 'running' &&
+                  <div>
+                      <div id="graph_speed"><canvas></canvas></div>
+                      <div id="graph_count"><canvas></canvas></div>
+                      <div id="result_table"><this.Table /></div>
+                  </div>
+              }
+            </div>
+        );
+    }
+
+    Table() {
+        return <h1>parsing...</h1>
+    }
 }
 
 export default App;
