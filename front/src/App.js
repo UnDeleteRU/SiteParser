@@ -1,4 +1,97 @@
 import React, { Component } from 'react';
+//import Graph from 'Graph.js';
+
+class Graph extends Component {
+    constructor(props) {
+        super(props);
+
+        this.scaleX = 2;
+        this.scaleY = 250;
+        this.points = [];
+        this.offset = 0;
+        this.current = 0;
+        this.length = 60 * 30; // 60 frames, 30 sec
+    }
+
+    componentDidMount() {
+        var container = document.getElementById(this.props.id);
+
+        this.canvas = document.querySelector('#' + this.props.id + ' canvas');
+        this.canvas.width = container.offsetWidth * this.scaleX;
+        this.canvas.height = container.offsetHeight;
+
+        if (this.canvas.width < 100) {
+            return;
+        }
+
+        var context = this.canvas.getContext('2d'),
+            width = this.canvas.width,
+            step = width / this.length;
+
+        context.beginPath();
+        context.moveTo(width / this.scaleX, this.points[0]);
+        context.lineWidth = 1;
+        context.strokeStyle = '#b7cff7';
+
+        var app = this;
+
+        this.interval = setInterval(function(){
+            if (!app.props.last) {
+                return;
+            }
+
+            var last = app.props.last;
+
+            app.points.push(last);
+            if (last > app.canvas.height * app.scaleY) {
+                app.scaleY =  last / app.canvas.height;
+                //redraw
+            }
+
+            app.current += 1;
+            app.canvas.style.left = - (app.current - app.offset) / app.scaleX + "px";
+
+            context.lineTo((width + app.current - app.offset) / app.scaleX, app.points[app.points.length - 1] / app.scaleY);
+            context.stroke();
+
+            app.moveWindow();
+        }, 100 * this.scaleX / (6 * step));
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.interval);
+    }
+
+    moveWindow() {
+        var context = this.canvas.getContext('2d');
+        var width = this.canvas.width;
+
+        if (this.offset + this.length < this.current) {
+            context.closePath();
+            this.offset = this.current;
+
+            if (this.points.length >  this.length) {
+                this.points = this.points.slice(this.points.length - length);
+            }
+
+            context.beginPath();
+            context.moveTo((width - this.points.length) / this.scaleX, this.points[0] / this.scaleY);
+
+            for (var i = 1; i < this.points.length; i++) {
+                context.lineTo((width - this.points.length + i) / this.scaleX, this.points[i] / this.scaleY);
+            }
+
+            context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            context.stroke();
+        }
+    }
+
+    render() {
+        return (
+            <div id={this.props.id}><canvas></canvas></div>
+        )
+    }
+}
 
 class App extends Component {
     constructor() {
@@ -21,11 +114,9 @@ class App extends Component {
                   this.setState({status: 'offline'});
               } else if (result.status === 'running') {
                   this.setState({status: 'running'});
-                  this.draw();
               }
           } else if (result.cmd === 'stat') {
-              console.log(result.stat);
-              this.last = result.stat.count * 4;
+              this.setState({count: result.stat.count, speed: result.stat.speed})
           } else {
               console.log(result);
           }
@@ -37,67 +128,6 @@ class App extends Component {
 
         this.parse = this.parse.bind(this);
         this.last = 0;
-    }
-
-    draw() {
-        var container = document.getElementById('graph_speed');
-        var canvas = document.querySelector('#graph_speed canvas');
-        var context = canvas.getContext('2d');
-        var scale = 2;
-        var offset = 0;
-
-        canvas.width = container.offsetWidth * scale;
-        canvas.height = container.offsetHeight;
-
-        if (canvas.width < 100) {
-          return;
-        }
-
-        var width = canvas.width,
-          length = 60 * 30, // 60 frames, 30 sec
-          step = width / length,
-          current = 0;
-
-        var points = [];
-
-        context.beginPath();
-        context.moveTo(width / scale, points[0]);
-        context.lineWidth = 1;
-        context.strokeStyle = '#b7cff7';
-
-        var moveWindow = function () {
-          if (offset + length < current) {
-              context.closePath();
-              offset = current;
-
-              if (points.length > length) {
-                  points = points.slice(points.length - length);
-              }
-
-              context.beginPath();
-              context.moveTo((width - points.length) / scale, points[0]);
-
-              for (var i = 1; i < points.length; i++) {
-                  context.lineTo((width - points.length + i) / scale, points[i]);
-              }
-
-              context.clearRect(0, 0, canvas.width, canvas.height);
-              context.stroke();
-          }
-        }
-
-        var app = this;
-
-        setInterval(function(){
-            points.push(app.last);
-
-            current += 1;
-            canvas.style.left = - (current - offset) / scale + "px";
-            context.lineTo((width + current - offset) / scale, points[points.length - 1]);
-            context.stroke();
-
-            moveWindow();
-        }, 100 * scale / (6 * step));
     }
 
     parse(e) {
@@ -118,8 +148,8 @@ class App extends Component {
               }
               {this.state.status === 'running' &&
                   <div>
-                      <div id="graph_speed"><canvas></canvas></div>
-                      <div id="graph_count"><canvas></canvas></div>
+                      <Graph id="graph_speed" last={this.state.speed}></Graph>
+                      <Graph id="graph_count" last={this.state.count}></Graph>
                       <div id="result_table"><this.Table /></div>
                   </div>
               }
