@@ -6,7 +6,7 @@ class Graph extends Component {
         super(props);
 
         this.scaleX = 2;
-        this.scaleY = 250;
+        this.scaleY = 1;
         this.points = [];
         this.offset = 0;
         this.current = 0;
@@ -29,13 +29,13 @@ class Graph extends Component {
             step = width / this.length;
 
         context.beginPath();
-        context.moveTo(width / this.scaleX, this.points[0]);
+        context.moveTo(width / this.scaleX, this.canvas.height - this.points[0]);
         context.lineWidth = 1;
         context.strokeStyle = '#b7cff7';
 
         var app = this;
 
-        this.interval = setInterval(function(){
+        this.interval = setInterval(function() {
             if (!app.props.last) {
                 return;
             }
@@ -44,14 +44,17 @@ class Graph extends Component {
 
             app.points.push(last);
             if (last > app.canvas.height * app.scaleY) {
-                app.scaleY =  last / app.canvas.height;
-                //redraw
+                app.scaleY = last / app.canvas.height;
+                app.redraw();
             }
 
             app.current += 1;
             app.canvas.style.left = - (app.current - app.offset) / app.scaleX + "px";
 
-            context.lineTo((width + app.current - app.offset) / app.scaleX, app.points[app.points.length - 1] / app.scaleY);
+            context.lineTo(
+                (width + app.current - app.offset) / app.scaleX,
+                app.canvas.height - app.points[app.points.length - 1] / app.scaleY
+            );
             context.stroke();
 
             app.moveWindow();
@@ -62,27 +65,38 @@ class Graph extends Component {
         clearInterval(this.interval);
     }
 
-    moveWindow() {
-        var context = this.canvas.getContext('2d');
-        var width = this.canvas.width;
+    redraw() {
+        var context = this.canvas.getContext('2d'),
+            width = this.canvas.width;
 
+        context.closePath();
+
+        context.beginPath();
+        context.moveTo(
+            (width - this.points.length) / this.scaleX,
+            this.canvas.height - this.points[0] / this.scaleY
+        );
+
+        for (var i = 1; i < this.points.length; i++) {
+            context.lineTo(
+                (width - this.points.length + i) / this.scaleX,
+                this.canvas.height - this.points[i] / this.scaleY
+            );
+        }
+
+        context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        context.stroke();
+    }
+
+    moveWindow() {
         if (this.offset + this.length < this.current) {
-            context.closePath();
             this.offset = this.current;
 
-            if (this.points.length >  this.length) {
-                this.points = this.points.slice(this.points.length - length);
+            if (this.points.length > this.length) {
+                this.points = this.points.slice(this.points.length - this.length);
             }
 
-            context.beginPath();
-            context.moveTo((width - this.points.length) / this.scaleX, this.points[0] / this.scaleY);
-
-            for (var i = 1; i < this.points.length; i++) {
-                context.lineTo((width - this.points.length + i) / this.scaleX, this.points[i] / this.scaleY);
-            }
-
-            context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            context.stroke();
+            this.redraw();
         }
     }
 
